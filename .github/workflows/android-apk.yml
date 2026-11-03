@@ -37,6 +37,18 @@ jobs:
           npm run typecheck
           npm test
 
+      - name: Definir versão (build = número da execução)
+        env:
+          RUN: ${{ github.run_number }}
+        run: |
+          node -e '
+            const fs = require("fs");
+            const a = JSON.parse(fs.readFileSync("app.json", "utf8"));
+            a.expo.version = "1.0." + process.env.RUN;
+            a.expo.android.versionCode = Number(process.env.RUN);
+            fs.writeFileSync("app.json", JSON.stringify(a, null, 2));
+          '
+
       - name: Gerar projeto Android nativo
         run: npx expo prebuild --platform android --no-install
 
@@ -44,20 +56,38 @@ jobs:
         working-directory: android
         run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
 
-      - name: Renomear APK
-        run: cp android/app/build/outputs/apk/release/app-release.apk iptv-acessivel.apk
+      - name: Renomear APK e gerar latest.json
+        env:
+          RUN: ${{ github.run_number }}
+          REPO: ${{ github.repository }}
+          MSG: ${{ github.event.head_commit.message }}
+        run: |
+          cp android/app/build/outputs/apk/release/app-release.apk iptv-acessivel.apk
+          node -e '
+            const run = Number(process.env.RUN);
+            require("fs").writeFileSync("latest.json", JSON.stringify({
+              versionCode: run,
+              version: "1.0." + run,
+              apkUrl: "https://github.com/" + process.env.REPO + "/releases/download/apk-latest/iptv-acessivel.apk",
+              notes: (process.env.MSG || "").split("\n")[0],
+              publishedAt: new Date().toISOString(),
+            }, null, 2));
+          '
+          cat latest.json
 
       - uses: actions/upload-artifact@v5
         with:
           name: iptv-acessivel-apk
-          path: iptv-acessivel.apk
+          path: |
+            iptv-acessivel.apk
+            latest.json
 
       - name: Publicar na release "apk-latest"
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete apk-latest --yes --cleanup-tag || true
-          gh release create apk-latest iptv-acessivel.apk \
+          gh release create apk-latest iptv-acessivel.apk latest.json \
             --title "APK de teste (build ${{ github.run_number }})" \
             --notes "APK gerado automaticamente a partir do commit ${{ github.sha }}. Assinado com chave de teste: serve para instalar e testar, não para a Play Store." \
             --prerelease --target "${{ github.sha }}"

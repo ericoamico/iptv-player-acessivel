@@ -17,11 +17,14 @@ interface SettingsState {
   autoRefreshHours: 0 | 12 | 24;
   /** Baixar o guia completo (XMLTV) do servidor automaticamente. Padrão: não. */
   fullEpgAuto: boolean;
+  /** Procurar nova versão do app ao abrir. Padrão: sim. */
+  autoCheckUpdates: boolean;
   setOrientation: (v: OrientationMode) => void;
   setPlayerAutoRotate: (v: boolean) => void;
   setStreamFormat: (v: StreamFormat) => void;
   setAutoRefreshHours: (v: 0 | 12 | 24) => void;
   setFullEpgAuto: (v: boolean) => void;
+  setAutoCheckUpdates: (v: boolean) => void;
 }
 
 export const useSettings = create<SettingsState>()(
@@ -33,11 +36,13 @@ export const useSettings = create<SettingsState>()(
       streamFormat: Platform.OS === 'ios' ? 'm3u8' : 'ts',
       autoRefreshHours: 24,
       fullEpgAuto: false,
+      autoCheckUpdates: true,
       setOrientation: (orientation) => set({ orientation }),
       setPlayerAutoRotate: (playerAutoRotate) => set({ playerAutoRotate }),
       setStreamFormat: (streamFormat) => set({ streamFormat }),
       setAutoRefreshHours: (autoRefreshHours) => set({ autoRefreshHours }),
       setFullEpgAuto: (fullEpgAuto) => set({ fullEpgAuto }),
+      setAutoCheckUpdates: (autoCheckUpdates) => set({ autoCheckUpdates }),
     }),
     { name: 'settings', storage: createJSONStorage(() => AsyncStorage) },
   ),

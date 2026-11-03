@@ -12,6 +12,8 @@ import { useAuth } from '../store/authStore';
 import { useEpg } from '../store/epgStore';
 import { usePlaylist } from '../store/playlistStore';
 import { useSettings, type OrientationMode, type StreamFormat } from '../store/settingsStore';
+import { useUpdates } from '../store/updateStore';
+import { installedBuild, installedVersion, updatesSupported } from '../update/updater';
 import { colors, font, MIN_TOUCH, spacing } from '../theme';
 import { announce, plural } from '../utils/a11y';
 import { formatDate, formatDateTime } from '../utils/time';
@@ -25,6 +27,19 @@ export default function SettingsScreen() {
   const [epgUrl, setEpgUrl] = useState(account?.epgUrl ?? '');
 
   const info = playlist?.accountInfo;
+  const updates = useUpdates();
+  const updateText =
+    updates.status === 'checking'
+      ? 'Procurando atualização…'
+      : updates.status === 'downloading'
+        ? `Baixando atualização: ${Math.round(updates.progress * 100)}%`
+        : updates.status === 'available' && updates.latest
+          ? `Nova versão disponível: ${updates.latest.version}.`
+          : updates.status === 'upToDate'
+            ? 'O app está na versão mais recente.'
+            : updates.status === 'error'
+              ? `Erro: ${updates.error}`
+              : '';
 
   async function saveEpgUrl() {
     if (!account) return;
@@ -158,6 +173,43 @@ export default function SettingsScreen() {
                 { value: 'm3u8', label: 'HLS (m3u8)', description: 'Recomendado no iPhone. Use se algum canal não abrir.' },
               ]}
             />
+          </>
+        ) : null}
+
+        {updatesSupported ? (
+          <>
+            <SectionHeader>Atualizações do app</SectionHeader>
+            <Text style={styles.muted}>
+              Versão instalada: {installedVersion()} (build {installedBuild()}).
+            </Text>
+            {updateText ? (
+              <Text style={styles.label} accessibilityLiveRegion="polite">
+                {updateText}
+              </Text>
+            ) : null}
+            {updates.status === 'available' ? (
+              <AppButton label="Baixar e instalar atualização" onPress={updates.install} style={styles.gap} />
+            ) : (
+              <AppButton
+                label="Procurar atualização"
+                variant="secondary"
+                onPress={() => updates.check(false)}
+                busy={updates.status === 'checking' || updates.status === 'downloading'}
+                style={styles.gap}
+              />
+            )}
+            <View style={styles.switchRow}>
+              <View style={styles.switchTexts} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+                <Text style={styles.label}>Procurar atualização ao abrir o app</Text>
+              </View>
+              <Switch
+                value={settings.autoCheckUpdates}
+                onValueChange={settings.setAutoCheckUpdates}
+                accessibilityLabel="Procurar atualização ao abrir o app"
+                trackColor={{ true: colors.primary, false: colors.border }}
+                thumbColor={colors.text}
+              />
+            </View>
           </>
         ) : null}
 

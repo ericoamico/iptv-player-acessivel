@@ -2,12 +2,14 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
+import { useAutoUpdateCheck } from '../hooks/useAutoUpdateCheck';
 import { useOrientationFromSettings } from '../hooks/useOrientationLock';
 import { useAuth } from '../store/authStore';
 import { colors } from '../theme';
 
 export default function RootLayout() {
   useOrientationFromSettings();
+  useAutoUpdateCheck();
 
   useEffect(() => {
     useAuth.getState().load();

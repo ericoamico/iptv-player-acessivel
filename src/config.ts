@@ -26,3 +26,8 @@ export const SHORT_EPG_CONCURRENCY = 3;
 
 /** Validade (ms) do EPG curto em memória. */
 export const SHORT_EPG_TTL_MS = 20 * 60_000;
+
+/** Repositório onde o GitHub Actions publica o APK (release "apk-latest"). */
+export const UPDATE_REPO = 'ericoamico/iptv-player-acessivel';
+/** Arquivo com a versão mais recente, publicado junto com o APK. */
+export const UPDATE_MANIFEST_URL = `https://github.com/${UPDATE_REPO}/releases/download/apk-latest/latest.json`;

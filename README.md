@@ -46,6 +46,13 @@ A cada push no `main`, o GitHub Actions gera um APK de teste e publica na releas
 [`apk-latest`](../../releases/tag/apk-latest). O workflow fica em `.github/workflows/android-apk.yml`.
 Esse APK é assinado com chave de teste: serve para instalar e testar, não para a Play Store.
 
+### Atualização automática
+
+Junto com o APK, o workflow publica `latest.json` com o número do build (`versionCode` = número da execução do Actions).
+Ao abrir, o app (Android) lê esse arquivo e, se houver build maior que o instalado, oferece baixar e instalar.
+Também há o botão "Procurar atualização" em Configurações. O Android pede uma vez a permissão
+"Instalar apps desconhecidos" para o IPTV Acessível.
+
 ## Scripts
 
 ```bash
