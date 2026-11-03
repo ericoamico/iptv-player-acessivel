@@ -38,6 +38,12 @@ npx expo run:android      # ou: npx eas-cli@latest build --profile development
 
 O app usa módulos nativos (expo-video, secure-store, screen-orientation), então precisa de um *development build*. O Expo Go não serve.
 
+## Baixar o APK
+
+A cada push no `main`, o GitHub Actions gera um APK de teste e publica na release
+[`apk-latest`](../../releases/tag/apk-latest). O workflow fica em `.github/workflows/android-apk.yml`.
+Esse APK é assinado com chave de teste: serve para instalar e testar, não para a Play Store.
+
 ## Scripts
 
 ```bash

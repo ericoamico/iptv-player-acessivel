@@ -1,0 +1,63 @@
+name: Gerar APK Android
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-apk
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Verificar tipos e testes
+        run: |
+          npm run typecheck
+          npm test
+
+      - name: Gerar projeto Android nativo
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Compilar APK (release, assinado com chave de teste)
+        working-directory: android
+        run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
+
+      - name: Renomear APK
+        run: cp android/app/build/outputs/apk/release/app-release.apk iptv-acessivel.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: iptv-acessivel-apk
+          path: iptv-acessivel.apk
+
+      - name: Publicar na release "apk-latest"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete apk-latest --yes --cleanup-tag || true
+          gh release create apk-latest iptv-acessivel.apk \
+            --title "APK de teste (build ${{ github.run_number }})" \
+            --notes "APK gerado automaticamente a partir do commit ${{ github.sha }}. Assinado com chave de teste: serve para instalar e testar, não para a Play Store." \
+            --prerelease --target "${{ github.sha }}"
