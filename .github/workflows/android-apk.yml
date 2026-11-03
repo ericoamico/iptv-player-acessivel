@@ -52,8 +52,42 @@ jobs:
       - name: Gerar projeto Android nativo
         run: npx expo prebuild --platform android --no-install
 
-      - name: Compilar APK (release, assinado com chave de teste)
+      - name: Configurar chave de assinatura
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KS_B64" ]; then
+            echo "::warning::Segredo ANDROID_KEYSTORE_BASE64 não configurado. O APK será assinado com a chave de TESTE (pública)."
+            exit 0
+          fi
+          echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+          cat >> android/app/build.gradle <<'GRADLE'
+
+          // Assinatura de produção (adicionada pelo workflow; a chave vem dos segredos do GitHub).
+          android {
+              signingConfigs {
+                  release {
+                      storeFile file(System.getenv("ANDROID_KEYSTORE_PATH"))
+                      storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                      keyAlias System.getenv("ANDROID_KEY_ALIAS")
+                      keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+                  }
+              }
+              buildTypes {
+                  release {
+                      signingConfig signingConfigs.release
+                  }
+              }
+          }
+          GRADLE
+
+      - name: Compilar APK (release)
         working-directory: android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
 
       - name: Renomear APK e gerar latest.json
@@ -63,6 +97,10 @@ jobs:
           MSG: ${{ github.event.head_commit.message }}
         run: |
           cp android/app/build/outputs/apk/release/app-release.apk iptv-acessivel.apk
+          rm -f "$RUNNER_TEMP/release.keystore"
+          APKSIGNER="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)apksigner"
+          export SIGNER=$("$APKSIGNER" verify --print-certs iptv-acessivel.apk | grep -m1 "SHA-256 digest" | awk '{print $NF}')
+          echo "Certificado do APK (SHA-256): $SIGNER"
           node -e '
             const run = Number(process.env.RUN);
             require("fs").writeFileSync("latest.json", JSON.stringify({
@@ -71,6 +109,7 @@ jobs:
               apkUrl: "https://github.com/" + process.env.REPO + "/releases/download/apk-latest/iptv-acessivel.apk",
               notes: (process.env.MSG || "").split("\n")[0],
               publishedAt: new Date().toISOString(),
+              signerSha256: process.env.SIGNER,
             }, null, 2));
           '
           cat latest.json
@@ -89,5 +128,5 @@ jobs:
           gh release delete apk-latest --yes --cleanup-tag || true
           gh release create apk-latest iptv-acessivel.apk latest.json \
             --title "APK de teste (build ${{ github.run_number }})" \
-            --notes "APK gerado automaticamente a partir do commit ${{ github.sha }}. Assinado com chave de teste: serve para instalar e testar, não para a Play Store." \
+            --notes "APK gerado automaticamente a partir do commit ${{ github.sha }}." \
             --prerelease --target "${{ github.sha }}"

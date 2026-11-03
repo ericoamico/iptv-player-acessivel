@@ -44,7 +44,10 @@ O app usa módulos nativos (expo-video, secure-store, screen-orientation), entã
 
 A cada push no `main`, o GitHub Actions gera um APK de teste e publica na release
 [`apk-latest`](../../releases/tag/apk-latest). O workflow fica em `.github/workflows/android-apk.yml`.
-Esse APK é assinado com chave de teste: serve para instalar e testar, não para a Play Store.
+O APK é assinado com a chave de produção guardada nos segredos do repositório
+(`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`).
+Sem esses segredos, o workflow usa a chave de teste pública do Expo e mostra um aviso.
+A chave **nunca** deve ser colocada no repositório.
 
 ### Atualização automática
 
