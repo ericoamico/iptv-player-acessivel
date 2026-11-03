@@ -14,7 +14,7 @@ import { applyOrientation } from '../../hooks/useOrientationLock';
 import { useNow } from '../../hooks/useNow';
 import { useScreenReader } from '../../hooks/useScreenReader';
 import { useAuth } from '../../store/authStore';
-import { useEpg } from '../../store/epgStore';
+import { programmesFor, useEpg } from '../../store/epgStore';
 import { streamUrlFor, usePlaylist } from '../../store/playlistStore';
 import { useSettings, type StreamFormat } from '../../store/settingsStore';
 import { colors, font, spacing } from '../../theme';
@@ -45,7 +45,10 @@ export default function PlayerScreen() {
   const announced = useRef<string | null>(null);
 
   const channel = byId[channelId];
-  const programmes = useEpg((s) => s.guide[channelId]);
+  const programmes = useEpg((s) => programmesFor(s, channelId));
+  useEffect(() => {
+    if (account && channel) useEpg.getState().requestShort(account, channel);
+  }, [account, channel]);
   const { now: current, next } = nowAndNext(programmes, now);
 
   const url = account && channel ? streamUrlFor(account, channel, format) : '';

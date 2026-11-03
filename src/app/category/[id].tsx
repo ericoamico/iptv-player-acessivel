@@ -1,13 +1,14 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { memo, useMemo, useState } from 'react';
-import { FlatList, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Image, Platform, Pressable, StyleSheet, Text, View, type ListViewToken } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { nowAndNext } from '../../api/epg';
 import { StatusView } from '../../components/StatusView';
 import { TextField } from '../../components/TextField';
 import { useNow } from '../../hooks/useNow';
-import { useEpg } from '../../store/epgStore';
+import { useAuth } from '../../store/authStore';
+import { programmesFor, useEpg } from '../../store/epgStore';
 import { usePlaylist } from '../../store/playlistStore';
 import { colors, font, MIN_TOUCH, spacing } from '../../theme';
 import type { Channel, Programme } from '../../types';
@@ -68,11 +69,21 @@ const ChannelRow = memo(function ChannelRow({
   );
 });
 
+// Busca o "agora / a seguir" só dos canais que estão visíveis na tela.
+// (Fora do componente: a FlatList exige que estes valores nunca mudem.)
+const viewabilityConfig = { itemVisiblePercentThreshold: 50, minimumViewTime: 250 };
+function onViewableItemsChanged({ viewableItems }: { viewableItems: ListViewToken[] }) {
+  const account = useAuth.getState().account;
+  if (!account) return;
+  for (const v of viewableItems) if (v.item) useEpg.getState().requestShort(account, v.item as Channel);
+}
+
 export default function ChannelsScreen() {
   const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
   const channels = usePlaylist((s) => s.byCategory[id]);
   const categoryName = usePlaylist((s) => name ?? s.playlist?.categories.find((c) => c.id === id)?.name ?? 'Canais');
   const guide = useEpg((s) => s.guide);
+  const short = useEpg((s) => s.short);
   const now = useNow();
   const [query, setQuery] = useState('');
 
@@ -91,7 +102,11 @@ export default function ChannelsScreen() {
         <FlatList
           data={filtered}
           keyExtractor={(c) => c.id}
-          renderItem={({ item }) => <ChannelRow channel={item} programmes={guide[item.id]} now={now} categoryId={id} />}
+          renderItem={({ item }) => (
+            <ChannelRow channel={item} programmes={programmesFor({ guide, short }, item.id)} now={now} categoryId={id} />
+          )}
+          viewabilityConfig={viewabilityConfig}
+          onViewableItemsChanged={onViewableItemsChanged}
           ItemSeparatorComponent={() => <View style={styles.sep} />}
           keyboardShouldPersistTaps="handled"
           initialNumToRender={15}

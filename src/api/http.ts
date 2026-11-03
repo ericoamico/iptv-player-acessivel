@@ -1,7 +1,7 @@
-import { inflate } from 'pako';
+import { Inflate, inflate } from 'pako';
 
-import { REQUEST_TIMEOUT_MS } from '../config';
-import { utf8Decode } from '../utils/text';
+import { EPG_MAX_BYTES, REQUEST_TIMEOUT_MS } from '../config';
+import { utf8Decode, utf8DecodeAsync, yieldToUI } from '../utils/text';
 
 export class AppError extends Error {
   constructor(message: string, public readonly kind: 'auth' | 'network' | 'server' | 'format' = 'server') {
@@ -57,4 +57,41 @@ export function bytesToText(bytes: Uint8Array): string {
     }
   }
   return utf8Decode(bytes);
+}
+
+const tooBig = () =>
+  new AppError('O guia de programação é grande demais para este aparelho. Use um endereço de guia menor nas configurações.', 'format');
+
+/**
+ * Igual a bytesToText, mas descompacta e decodifica em partes,
+ * sem travar a interface. Usado para o guia completo (XMLTV), que pode ser enorme.
+ */
+export async function bytesToTextAsync(bytes: Uint8Array, maxBytes = EPG_MAX_BYTES): Promise<string> {
+  if (bytes.length > 2 && bytes[0] === 0x1f && bytes[1] === 0x8b) {
+    const inf = new Inflate();
+    const parts: Uint8Array[] = [];
+    let total = 0;
+    inf.onData = (chunk) => {
+      parts.push(chunk);
+      total += chunk.length;
+    };
+    const STEP = 256 * 1024;
+    for (let i = 0; i < bytes.length; i += STEP) {
+      inf.push(bytes.subarray(i, i + STEP), i + STEP >= bytes.length);
+      if (inf.err) throw new AppError('Não foi possível descompactar o arquivo do guia.', 'format');
+      if (total > maxBytes) throw tooBig();
+      await yieldToUI();
+    }
+    return utf8DecodeAsync(parts);
+  }
+  if (bytes.length > maxBytes) throw tooBig();
+  return utf8DecodeAsync([bytes]);
+}
+
+/** Baixa um arquivo grande de texto (.xml ou .xml.gz) sem travar a interface. */
+export async function getLargeText(url: string, timeoutMs: number): Promise<string> {
+  const res = await request(url, timeoutMs);
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  await yieldToUI();
+  return bytesToTextAsync(bytes);
 }

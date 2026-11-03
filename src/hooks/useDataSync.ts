@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 
 import { useAuth } from '../store/authStore';
-import { useEpg } from '../store/epgStore';
+import { shouldAutoDownloadFullEpg, useEpg } from '../store/epgStore';
 import { usePlaylist } from '../store/playlistStore';
 import { useSettings } from '../store/settingsStore';
 import { announce, plural } from '../utils/a11y';
@@ -13,13 +13,15 @@ import { announce, plural } from '../utils/a11y';
 export function useDataSync() {
   const account = useAuth((s) => s.account);
   const autoRefreshHours = useSettings((s) => s.autoRefreshHours);
+  const fullEpgAuto = useSettings((s) => s.fullEpgAuto);
+  const autoEpg = !!account && shouldAutoDownloadFullEpg(account, fullEpgAuto);
   const started = useRef(false);
 
   const refreshEpg = useCallback(
     async (silent = true) => {
       const playlist = usePlaylist.getState().playlist;
       if (!account || !playlist) return;
-      if (!silent) announce('Atualizando guia de programação…');
+      if (!silent) announce('Baixando guia de programação completo. Isso pode demorar.');
       try {
         const n = await useEpg.getState().refresh(account, playlist);
         if (!silent) announce(`Guia atualizado. ${plural(n, 'canal', 'canais')} com programação.`);
@@ -38,11 +40,11 @@ export function useDataSync() {
       announce(
         `Lista atualizada. ${plural(p.channels.length, 'canal', 'canais')} em ${plural(p.categories.length, 'categoria', 'categorias')}.`,
       );
-      refreshEpg(true);
+      if (autoEpg) refreshEpg(true);
     } catch (e) {
       announce(`Erro ao atualizar a lista: ${(e as Error).message}`);
     }
-  }, [account, refreshEpg]);
+  }, [account, refreshEpg, autoEpg]);
 
   useEffect(() => {
     if (!account || started.current) return;
@@ -55,9 +57,9 @@ export function useDataSync() {
         return;
       }
       const epgAt = await useEpg.getState().loadCache();
-      if (!epgAt || (maxAge > 0 && Date.now() - epgAt > maxAge)) refreshEpg(true);
+      if (autoEpg && (!epgAt || (maxAge > 0 && Date.now() - epgAt > maxAge))) refreshEpg(true);
     })();
-  }, [account, autoRefreshHours, refreshPlaylist, refreshEpg]);
+  }, [account, autoRefreshHours, refreshPlaylist, refreshEpg, autoEpg]);
 
   return { refreshPlaylist, refreshEpg };
 }

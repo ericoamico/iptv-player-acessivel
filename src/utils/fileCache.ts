@@ -11,10 +11,15 @@ export async function readJson<T>(name: string): Promise<T | null> {
   }
 }
 
+/** Falha ao gravar o cache não deve impedir o app de funcionar. */
 export async function writeJson(name: string, data: unknown): Promise<void> {
-  const file = new File(Paths.document, `${name}.json`);
-  if (!file.exists) file.create();
-  await file.write(JSON.stringify(data));
+  try {
+    const file = new File(Paths.document, `${name}.json`);
+    if (!file.exists) file.create();
+    await file.write(JSON.stringify(data));
+  } catch (e) {
+    console.warn(`Não foi possível salvar o cache ${name}:`, e);
+  }
 }
 
 export function removeJson(name: string) {

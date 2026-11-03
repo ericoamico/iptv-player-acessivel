@@ -15,7 +15,9 @@ App de IPTV em React Native (Expo SDK 58) feito para funcionar bem com **TalkBac
   - Anuncia canal e programa ao começar a tocar.
   - Em paisagem, os controles não somem enquanto o leitor de tela estiver ativo.
   - Em caso de erro: "Tentar novamente" e "Tentar formato HLS/TS".
-- **EPG**: XMLTV (`.xml` e `.xml.gz`), `url-tvg` do M3U, `xmltv.php` do Xtream e EPG curto (`get_short_epg`) como reserva.
+- **EPG**:
+  - Xtream: o "agora / a seguir" é buscado por canal (`get_short_epg`), só para os canais visíveis na tela.
+  - Guia completo XMLTV (`.xml` e `.xml.gz`), `url-tvg` do M3U ou endereço próprio: opcional, processado em partes para não travar o app.
 - **Configurações**:
   - Modo de tela: **Retrato (padrão)**, Paisagem ou Automático.
   - Girar livremente no player.
@@ -49,6 +51,7 @@ Esse APK é assinado com chave de teste: serve para instalar e testar, não para
 ```bash
 npm run typecheck   # TypeScript
 npm run lint        # ESLint
+npx expo start --web # roda no navegador (para testes; sem guardar senha com segurança)
 npm test            # testes de parsers (M3U, XMLTV, links) e da API Xtream com servidor simulado
 ```
 

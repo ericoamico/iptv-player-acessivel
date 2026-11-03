@@ -41,6 +41,55 @@ export function utf8Decode(bytes: Uint8Array): string {
   return out;
 }
 
+/** Devolve o controle para a interface (toques, animações) antes de continuar. */
+export const yieldToUI = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+/** Recua `end` para não cortar um caractere UTF-8 no meio. */
+export function utf8SafeEnd(buf: Uint8Array, end: number, min = 0): number {
+  let i = end;
+  while (i > min && i > end - 3 && (buf[i - 1] & 0xc0) === 0x80) i--;
+  if (i <= min) return end;
+  const b = buf[i - 1];
+  const need = b >= 0xf0 ? 4 : b >= 0xe0 ? 3 : b >= 0xc0 ? 2 : 1;
+  return end - (i - 1) < need ? i - 1 : end;
+}
+
+/**
+ * Decodifica UTF-8 em fatias de 1 MB, liberando a interface entre elas.
+ * Aceita vários pedaços (ex.: saída do descompactador).
+ */
+export async function utf8DecodeAsync(parts: Uint8Array[], pause: () => Promise<void> = yieldToUI): Promise<string> {
+  const SLICE = 1 << 20;
+  const out: string[] = [];
+  let carry: Uint8Array | null = null;
+  let n = 0;
+  for (let pi = 0; pi < parts.length; pi++) {
+    const isLast = pi === parts.length - 1;
+    let buf = parts[pi];
+    if (carry) {
+      const joined = new Uint8Array(carry.length + buf.length);
+      joined.set(carry);
+      joined.set(buf, carry.length);
+      buf = joined;
+      carry = null;
+    }
+    let pos = 0;
+    while (pos < buf.length) {
+      let end = Math.min(pos + SLICE, buf.length);
+      if (end < buf.length || !isLast) end = utf8SafeEnd(buf, end, pos);
+      if (end <= pos) {
+        carry = buf.slice(pos);
+        break;
+      }
+      out.push(utf8Decode(buf.subarray(pos, end)));
+      pos = end;
+      if (++n % 2 === 0) await pause();
+    }
+  }
+  if (carry) out.push(utf8Decode(carry));
+  return out.join('');
+}
+
 /** Decodifica base64 (usado no EPG curto do Xtream) para texto UTF-8. */
 export function base64ToUtf8(input: string): string {
   if (!input) return '';

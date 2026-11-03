@@ -112,11 +112,29 @@ export default function SettingsScreen() {
           {epgLoading
             ? 'Atualizando guia…'
             : epgUpdatedAt
-              ? `${plural(Object.keys(guide).length, 'canal', 'canais')} com programação. Atualizado em ${formatDateTime(epgUpdatedAt)}.`
-              : 'Guia ainda não carregado.'}
+              ? `Guia completo: ${plural(Object.keys(guide).length, 'canal', 'canais')} com programação. Atualizado em ${formatDateTime(epgUpdatedAt)}.`
+              : 'Guia completo não baixado.'}
         </Text>
         {epgError ? <Text style={styles.error}>{epgError}</Text> : null}
-        <AppButton label="Atualizar guia agora" onPress={() => refreshEpg(false)} busy={epgLoading} style={styles.gap} />
+        <Text style={styles.muted}>
+          Nos canais, o “agora / a seguir” é buscado no servidor só para os canais que aparecem na tela. O guia completo
+          traz a programação de todos os canais de uma vez, mas costuma ser um arquivo grande e lento.
+        </Text>
+        <AppButton label="Baixar guia completo agora" onPress={() => refreshEpg(false)} busy={epgLoading} style={styles.gap} />
+        <View style={styles.switchRow}>
+          <View style={styles.switchTexts} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+            <Text style={styles.label}>Baixar guia completo automaticamente</Text>
+            <Text style={styles.muted}>Junto com a atualização da lista. Pode deixar o app lento em aparelhos simples.</Text>
+          </View>
+          <Switch
+            value={settings.fullEpgAuto}
+            onValueChange={settings.setFullEpgAuto}
+            accessibilityLabel="Baixar guia completo automaticamente"
+            accessibilityHint="Junto com a atualização da lista. Pode deixar o app lento em aparelhos simples."
+            trackColor={{ true: colors.primary, false: colors.border }}
+            thumbColor={colors.text}
+          />
+        </View>
         <TextField
           label="Endereço do guia (opcional)"
           hint="Link XMLTV (.xml ou .xml.gz). Deixe vazio para usar o guia do servidor."

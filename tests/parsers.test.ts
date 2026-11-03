@@ -3,10 +3,10 @@ import { test } from 'node:test';
 import { gzip } from 'pako';
 
 import { nowAndNext, parseXmltv } from '../src/api/epg';
-import { bytesToText } from '../src/api/http';
+import { bytesToText, bytesToTextAsync } from '../src/api/http';
 import { parseM3U } from '../src/api/m3u';
 import type { Channel } from '../src/types';
-import { base64ToUtf8, normalizeName, utf8Decode } from '../src/utils/text';
+import { base64ToUtf8, normalizeName, utf8Decode, utf8DecodeAsync, utf8SafeEnd } from '../src/utils/text';
 import { parseXmltvDate } from '../src/utils/time';
 import { normalizeServer, parseCredentialsFromLink } from '../src/utils/url';
 
@@ -57,7 +57,7 @@ http://s/3.m3u8
   assert.throws(() => parseM3U('<html>erro</html>'));
 });
 
-test('parseXmltv liga por tvg-id e por nome, filtra janela', () => {
+test('parseXmltv liga por tvg-id e por nome, filtra janela', async () => {
   const now = Date.UTC(2026, 10, 3, 20, 30);
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <tv>
@@ -78,7 +78,7 @@ test('parseXmltv liga por tvg-id e por nome, filtra janela', () => {
     { id: '2', name: 'ESPN Brasil FHD', categoryId: 'b' },
     { id: '3', name: 'Sem guia', categoryId: 'b' },
   ];
-  const guide = parseXmltv(xml, channels, { now });
+  const guide = await parseXmltv(xml, channels, { now });
   assert.deepEqual(Object.keys(guide).sort(), ['1', '2']);
   assert.equal(guide['1'].length, 2);
   assert.equal(guide['1'][0].title, 'Jornal & Notícias');
@@ -114,4 +114,43 @@ test('base64ToUtf8 (EPG curto Xtream)', () => {
 test('normalizeName ignora acentos e sufixos de qualidade', () => {
   assert.equal(normalizeName('ESPN Brasil FHD'), normalizeName('Espn brasil'));
   assert.equal(normalizeName('Globo [Alt] HD'), 'globo');
+});
+
+test('utf8SafeEnd não corta caracteres no meio', () => {
+  const b = new TextEncoder().encode('aé🎬'); // a(1) é(2) 🎬(4)
+  assert.equal(utf8SafeEnd(b, 2), 1); // cortaria o é
+  assert.equal(utf8SafeEnd(b, 3), 3);
+  assert.equal(utf8SafeEnd(b, 5), 3); // cortaria o emoji
+  assert.equal(utf8SafeEnd(b, 7), 7);
+});
+
+test('utf8DecodeAsync junta pedaços cortados no meio de caracteres', async () => {
+  const text = 'Programação ação 🎬 '.repeat(200_000); // ~5 MB, várias fatias
+  const bytes = new TextEncoder().encode(text);
+  const parts = [bytes.subarray(0, 1001), bytes.subarray(1001, 3_000_003), bytes.subarray(3_000_003)];
+  let pauses = 0;
+  const out = await utf8DecodeAsync(parts, async () => void pauses++);
+  assert.equal(out, text);
+  assert.ok(pauses > 0, 'deveria liberar a interface entre fatias');
+});
+
+test('bytesToTextAsync descompacta gzip grande em partes e respeita o limite', async () => {
+  const text = '<programme>Notícia</programme>\n'.repeat(300_000); // ~10 MB
+  const gz = gzip(new TextEncoder().encode(text));
+  assert.equal(await bytesToTextAsync(gz), text);
+  await assert.rejects(bytesToTextAsync(gz, 1_000_000), /grande demais/);
+});
+
+test('parseXmltv libera a interface em arquivos grandes', async () => {
+  const now = Date.UTC(2026, 10, 3, 20, 30);
+  let xml = '<tv>';
+  for (let i = 0; i < 5000; i++) {
+    xml += `<programme start="20261103200000 +0000" stop="20261103210000 +0000" channel="c${i % 50}"><title>P${i}</title></programme>`;
+  }
+  xml += '</tv>';
+  const channels: Channel[] = Array.from({ length: 50 }, (_, i) => ({ id: String(i), name: `C${i}`, categoryId: 'a', epgChannelId: `c${i}` }));
+  let pauses = 0;
+  const guide = await parseXmltv(xml, channels, { now, pause: async () => void pauses++ });
+  assert.equal(Object.keys(guide).length, 50);
+  assert.ok(pauses >= 10);
 });

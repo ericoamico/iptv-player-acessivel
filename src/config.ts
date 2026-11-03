@@ -17,3 +17,12 @@ export const EPG_TIMEOUT_MS = 120_000;
 /** Janela de programação mantida em cache: horas para trás e para frente. */
 export const EPG_HOURS_BEFORE = 3;
 export const EPG_HOURS_AFTER = 48;
+
+/** Tamanho máximo do guia completo (descompactado). Acima disso o download é recusado. */
+export const EPG_MAX_BYTES = 150 * 1024 * 1024;
+
+/** Quantos pedidos de EPG curto (por canal) podem rodar ao mesmo tempo. */
+export const SHORT_EPG_CONCURRENCY = 3;
+
+/** Validade (ms) do EPG curto em memória. */
+export const SHORT_EPG_TTL_MS = 20 * 60_000;

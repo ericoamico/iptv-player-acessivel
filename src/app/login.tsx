@@ -10,8 +10,9 @@ import { RadioGroup } from '../components/RadioGroup';
 import { TextField } from '../components/TextField';
 import { DEFAULT_SERVER } from '../config';
 import { useAuth } from '../store/authStore';
-import { useEpg } from '../store/epgStore';
+import { shouldAutoDownloadFullEpg, useEpg } from '../store/epgStore';
 import { usePlaylist } from '../store/playlistStore';
+import { useSettings } from '../store/settingsStore';
 import { colors, font, MIN_TOUCH, spacing } from '../theme';
 import type { Account, AccountType } from '../types';
 import { announce, plural } from '../utils/a11y';
@@ -85,7 +86,9 @@ export default function LoginScreen() {
       announce(
         `Conectado. ${plural(playlist.channels.length, 'canal', 'canais')} em ${plural(playlist.categories.length, 'categoria', 'categorias')}.`,
       );
-      useEpg.getState().refresh(account, playlist).catch(() => {});
+      if (shouldAutoDownloadFullEpg(account, useSettings.getState().fullEpgAuto)) {
+        useEpg.getState().refresh(account, playlist).catch(() => {});
+      }
       router.replace('/categories');
     } catch (e) {
       const msg = e instanceof AppError ? e.message : 'Não foi possível entrar. Tente novamente.';

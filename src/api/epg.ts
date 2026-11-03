@@ -1,8 +1,8 @@
 import { EPG_HOURS_AFTER, EPG_HOURS_BEFORE, EPG_TIMEOUT_MS } from '../config';
 import type { Channel, EpgGuide, Programme } from '../types';
-import { decodeEntities, normalizeName } from '../utils/text';
+import { decodeEntities, normalizeName, yieldToUI } from '../utils/text';
 import { parseXmltvDate } from '../utils/time';
-import { getText } from './http';
+import { getLargeText } from './http';
 
 function attr(tag: string, name: string): string | undefined {
   const m = new RegExp(`\\b${name}\\s*=\\s*("([^"]*)"|'([^']*)')`).exec(tag);
@@ -22,14 +22,22 @@ export interface ParseXmltvOptions {
   now?: number;
   hoursBefore?: number;
   hoursAfter?: number;
+  /** Função chamada periodicamente para liberar a interface. */
+  pause?: () => Promise<void>;
 }
+
+/** A cada quantos itens o parser libera a interface. */
+const BATCH = 400;
 
 /**
  * Lê um XMLTV e devolve a programação ligada aos canais da lista.
  * A ligação é feita por tvg-id/epg_channel_id e, como reserva, pelo nome do canal.
- * Usa varredura por expressões regulares para gastar pouca memória em arquivos grandes.
+ * Usa varredura por expressões regulares para gastar pouca memória em arquivos grandes,
+ * e libera a interface a cada lote para o app não travar.
  */
-export function parseXmltv(xml: string, channels: Channel[], opts: ParseXmltvOptions = {}): EpgGuide {
+export async function parseXmltv(xml: string, channels: Channel[], opts: ParseXmltvOptions = {}): Promise<EpgGuide> {
+  const pause = opts.pause ?? yieldToUI;
+  let count = 0;
   const now = opts.now ?? Date.now();
   const from = now - (opts.hoursBefore ?? EPG_HOURS_BEFORE) * 3_600_000;
   const to = now + (opts.hoursAfter ?? EPG_HOURS_AFTER) * 3_600_000;
@@ -53,6 +61,7 @@ export function parseXmltv(xml: string, channels: Channel[], opts: ParseXmltvOpt
   const channelRe = /<channel\b([^>]*)>([\s\S]*?)<\/channel>/g;
   let m: RegExpExecArray | null;
   while ((m = channelRe.exec(xml))) {
+    if (++count % BATCH === 0) await pause();
     const id = attr(m[1], 'id');
     if (!id) continue;
     const key = id.toLowerCase();
@@ -72,6 +81,7 @@ export function parseXmltv(xml: string, channels: Channel[], opts: ParseXmltvOpt
   const guide: EpgGuide = {};
   const progRe = /<programme\b([^>]*)>([\s\S]*?)<\/programme>/g;
   while ((m = progRe.exec(xml))) {
+    if (++count % BATCH === 0) await pause();
     const head = m[1];
     const chId = attr(head, 'channel')?.toLowerCase();
     if (!chId) continue;
@@ -94,7 +104,7 @@ export function parseXmltv(xml: string, channels: Channel[], opts: ParseXmltvOpt
 }
 
 export async function downloadXmltv(url: string, channels: Channel[]): Promise<EpgGuide> {
-  const xml = await getText(url, EPG_TIMEOUT_MS);
+  const xml = await getLargeText(url, EPG_TIMEOUT_MS);
   return parseXmltv(xml, channels);
 }
 
