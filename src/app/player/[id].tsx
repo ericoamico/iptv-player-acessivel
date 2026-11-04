@@ -12,7 +12,9 @@ import { AppButton } from '../../components/AppButton';
 import { StatusView } from '../../components/StatusView';
 import { applyOrientation } from '../../hooks/useOrientationLock';
 import { useNow } from '../../hooks/useNow';
+import { useCategoryChannels, useFavoriteKeys } from '../../hooks/useChannels';
 import { useScreenReader } from '../../hooks/useScreenReader';
+import { favKey, useFavorites } from '../../store/favoritesStore';
 import { useAuth } from '../../store/authStore';
 import { programmesFor, useEpg } from '../../store/epgStore';
 import { streamUrlFor, usePlaylist } from '../../store/playlistStore';
@@ -28,7 +30,7 @@ export default function PlayerScreen() {
   const params = useLocalSearchParams<{ id: string; categoryId?: string }>();
   const account = useAuth((s) => s.account);
   const byId = usePlaylist((s) => s.byId);
-  const siblings = usePlaylist((s) => (params.categoryId ? s.byCategory[params.categoryId] : undefined));
+  const siblings = useCategoryChannels(params.categoryId || undefined);
   const settingsFormat = useSettings((s) => s.streamFormat);
   const autoRotate = useSettings((s) => s.playerAutoRotate);
   const appOrientation = useSettings((s) => s.orientation);
@@ -45,6 +47,13 @@ export default function PlayerScreen() {
   const announced = useRef<string | null>(null);
 
   const channel = byId[channelId];
+  const favoriteKeys = useFavoriteKeys();
+  const isFavorite = !!channel && favoriteKeys.includes(favKey(channel));
+  const toggleFavorite = () => {
+    if (!account || !channel) return;
+    const added = useFavorites.getState().toggle(account, channel);
+    announce(added ? `${channel.name} adicionado aos favoritos.` : `${channel.name} removido dos favoritos.`);
+  };
   const programmes = useEpg((s) => programmesFor(s, channelId));
   useEffect(() => {
     if (account && channel) useEpg.getState().requestShort(account, channel);
@@ -147,6 +156,7 @@ export default function PlayerScreen() {
       ? { name: 'retry', label: 'Tentar novamente' }
       : { name: 'toggle', label: isPlaying ? 'Pausar' : 'Reproduzir' },
     { name: 'epg', label: 'Ver programação' },
+    { name: 'fav', label: isFavorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos' },
     fullscreen ? { name: 'fullscreen', label: 'Sair da tela cheia' } : { name: 'fullscreen', label: 'Tela cheia' },
     { name: 'info', label: 'O que está passando' },
   ];
@@ -162,6 +172,8 @@ export default function PlayerScreen() {
         return setRetryKey((k) => k + 1);
       case 'epg':
         return openEpg();
+      case 'fav':
+        return toggleFavorite();
       case 'fullscreen':
         return setFullscreen((f) => !f);
       case 'info':
@@ -171,7 +183,7 @@ export default function PlayerScreen() {
   const titleA11y = {
     accessible: true,
     accessibilityRole: 'header' as const,
-    accessibilityLabel: `${channel.number != null ? `${channel.number}. ` : ''}${channel.name}`,
+    accessibilityLabel: `${channel.number != null ? `${channel.number}. ` : ''}${channel.name}${isFavorite ? ', favorito' : ''}`,
     accessibilityHint: 'Mais ações no menu de ações: trocar de canal, pausar, programação e tela cheia.',
     accessibilityActions: a11yActions,
     onAccessibilityAction: onA11yAction,
@@ -307,6 +319,14 @@ export default function PlayerScreen() {
             compact
             onPress={() => setFullscreen(true)}
             hint="Gira a tela para paisagem e amplia o vídeo"
+            style={styles.ctrl}
+          />
+          <AppButton
+            label={isFavorite ? '★ Remover dos favoritos' : '☆ Adicionar aos favoritos'}
+            accessibilityLabel={isFavorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+            variant="secondary"
+            compact
+            onPress={toggleFavorite}
             style={styles.ctrl}
           />
           <AppButton

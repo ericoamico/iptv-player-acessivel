@@ -5,7 +5,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppButton } from '../components/AppButton';
 import { HeaderButton } from '../components/HeaderButton';
 import { StatusView } from '../components/StatusView';
+import { useFavoriteChannels } from '../hooks/useChannels';
 import { useDataSync } from '../hooks/useDataSync';
+import { FAVORITES_ID } from '../store/favoritesStore';
 import { usePlaylist } from '../store/playlistStore';
 import { colors, font, MIN_TOUCH, spacing } from '../theme';
 import type { Category } from '../types';
@@ -15,6 +17,7 @@ import { formatDateTime } from '../utils/time';
 export default function CategoriesScreen() {
   const { playlist, loading, error } = usePlaylist();
   const { refreshPlaylist } = useDataSync();
+  const favoritesCount = useFavoriteChannels().length;
 
   const header = (
     <Stack.Screen
@@ -94,6 +97,19 @@ export default function CategoriesScreen() {
                 {error}
               </Text>
             ) : null}
+            <Pressable
+              onPress={() => router.push({ pathname: '/category/[id]', params: { id: FAVORITES_ID } })}
+              accessibilityRole="button"
+              accessibilityLabel={`Favoritos, ${favoritesCount ? plural(favoritesCount, 'canal', 'canais') : 'nenhum canal'}`}
+              accessibilityHint="Abre os seus canais favoritos"
+              style={({ pressed }) => [styles.favRow, pressed && styles.rowPressed]}
+            >
+              <Text style={styles.favStar} importantForAccessibility="no">
+                ★
+              </Text>
+              <Text style={styles.rowTitle}>Favoritos</Text>
+              <Text style={styles.rowCount}>{favoritesCount}</Text>
+            </Pressable>
           </View>
         }
         ListEmptyComponent={<StatusView message="Nenhuma categoria encontrada nesta lista." />}
@@ -119,4 +135,16 @@ const styles = StyleSheet.create({
   rowTitle: { flex: 1, color: colors.text, fontSize: font.body, fontWeight: '600' },
   rowCount: { color: colors.textMuted, fontSize: font.body, marginLeft: spacing.md },
   sep: { height: 1, backgroundColor: colors.border },
+  favRow: {
+    minHeight: Math.max(MIN_TOUCH, 64),
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.focus,
+  },
+  favStar: { color: colors.focus, fontSize: 22, marginRight: spacing.sm },
 });
