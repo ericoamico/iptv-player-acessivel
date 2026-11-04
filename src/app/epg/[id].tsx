@@ -55,6 +55,8 @@ export default function ChannelEpgScreen() {
 
   if (!channel) return <StatusView message="Canal não encontrado." />;
 
+  const watch = () => router.push({ pathname: '/player/[id]', params: { id: channel.id, categoryId: categoryId ?? '' } });
+
   return (
     <SafeAreaView style={styles.safe} edges={['bottom', 'left', 'right']}>
       <Stack.Screen options={{ title: `Programação: ${channel.name}` }} />
@@ -69,7 +71,7 @@ export default function ChannelEpgScreen() {
             </Text>
             <AppButton
               label="Assistir este canal"
-              onPress={() => router.push({ pathname: '/player/[id]', params: { id: channel.id, categoryId: categoryId ?? '' } })}
+              onPress={watch}
             />
           </View>
         }
@@ -86,6 +88,8 @@ export default function ChannelEpgScreen() {
               style={[styles.item, live && styles.itemLive]}
               accessible
               accessibilityLabel={`${live ? 'No ar agora. ' : ''}${time}: ${item.title}. ${item.description ?? ''}`}
+              accessibilityActions={[{ name: 'watch', label: 'Assistir este canal' }]}
+              onAccessibilityAction={(e) => e.nativeEvent.actionName === 'watch' && watch()}
             >
               <Text style={styles.time}>
                 {live ? 'AGORA · ' : ''}

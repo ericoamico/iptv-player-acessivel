@@ -46,6 +46,16 @@ export default function CategoriesScreen() {
       accessibilityRole="button"
       accessibilityLabel={`${item.name}, ${plural(item.channelCount, 'canal', 'canais')}`}
       accessibilityHint="Abre os canais desta categoria"
+      accessibilityActions={[
+        { name: 'activate', label: 'Abrir categoria' },
+        { name: 'open', label: 'Abrir categoria' },
+        { name: 'refresh', label: 'Atualizar lista' },
+      ]}
+      onAccessibilityAction={(e) => {
+        const action = e.nativeEvent.actionName;
+        if (action === 'refresh') refreshPlaylist();
+        else router.push({ pathname: '/category/[id]', params: { id: item.id, name: item.name } });
+      }}
       style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
     >
       <Text style={styles.rowTitle} numberOfLines={2}>

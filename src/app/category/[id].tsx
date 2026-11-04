@@ -1,6 +1,6 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { memo, useMemo, useState } from 'react';
-import { FlatList, Image, Platform, Pressable, StyleSheet, Text, View, type ListViewToken } from 'react-native';
+import { FlatList, Image, Pressable, StyleSheet, Text, View, type ListViewToken } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { nowAndNext } from '../../api/epg';
@@ -39,15 +39,18 @@ const ChannelRow = memo(function ChannelRow({
       onLongPress={openEpg}
       accessibilityRole="button"
       accessibilityLabel={`${prefix}${channel.name}. ${epgText}`}
-      accessibilityHint="Toque duas vezes para assistir. Use as ações para ver a programação."
+      accessibilityHint="Toque duas vezes para assistir. Mais ações no menu de ações."
+      // Ações personalizadas: no TalkBack aparecem ao deslizar para cima ou para baixo
+      // (controle de leitura "Ações") e no menu de ações; no VoiceOver, no rotor.
       accessibilityActions={[
         { name: 'activate', label: 'Assistir' },
-        // Android: ação "toque longo"; iOS: ação personalizada no rotor do VoiceOver.
-        Platform.OS === 'android' ? { name: 'longpress', label: 'Ver programação' } : { name: 'epg', label: 'Ver programação' },
+        { name: 'watch', label: 'Assistir' },
+        { name: 'epg', label: 'Ver programação' },
       ]}
       onAccessibilityAction={(e) => {
-        if (e.nativeEvent.actionName === 'activate') openPlayer();
-        else openEpg();
+        const action = e.nativeEvent.actionName;
+        if (action === 'activate' || action === 'watch') openPlayer();
+        else if (action === 'epg') openEpg();
       }}
       style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
     >

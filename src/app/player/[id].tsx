@@ -137,6 +137,46 @@ export default function PlayerScreen() {
   const statusText =
     status === 'loading' ? 'Carregando…' : status === 'error' ? 'Erro ao reproduzir' : isPlaying ? 'Reproduzindo' : 'Pausado';
 
+  // Ações do TalkBack/VoiceOver no título do canal: deslizar para cima/baixo
+  // (controle "Ações") escolhe, toque duplo executa. Evita procurar cada botão.
+  const openEpg = () =>
+    router.push({ pathname: '/epg/[id]', params: { id: channel.id, categoryId: params.categoryId ?? '' } });
+  const a11yActions = [
+    ...(canZap ? [{ name: 'next', label: 'Próximo canal' }, { name: 'prev', label: 'Canal anterior' }] : []),
+    status === 'error'
+      ? { name: 'retry', label: 'Tentar novamente' }
+      : { name: 'toggle', label: isPlaying ? 'Pausar' : 'Reproduzir' },
+    { name: 'epg', label: 'Ver programação' },
+    fullscreen ? { name: 'fullscreen', label: 'Sair da tela cheia' } : { name: 'fullscreen', label: 'Tela cheia' },
+    { name: 'info', label: 'O que está passando' },
+  ];
+  const onA11yAction = (e: { nativeEvent: { actionName: string } }) => {
+    switch (e.nativeEvent.actionName) {
+      case 'next':
+        return zap(1);
+      case 'prev':
+        return zap(-1);
+      case 'toggle':
+        return togglePlay();
+      case 'retry':
+        return setRetryKey((k) => k + 1);
+      case 'epg':
+        return openEpg();
+      case 'fullscreen':
+        return setFullscreen((f) => !f);
+      case 'info':
+        return announce(`${channel.name}. ${statusText}. ${nowText}${next && current ? `. A seguir: ${next.title}, às ${formatHour(next.start)}` : ''}`);
+    }
+  };
+  const titleA11y = {
+    accessible: true,
+    accessibilityRole: 'header' as const,
+    accessibilityLabel: `${channel.number != null ? `${channel.number}. ` : ''}${channel.name}`,
+    accessibilityHint: 'Mais ações no menu de ações: trocar de canal, pausar, programação e tela cheia.',
+    accessibilityActions: a11yActions,
+    onAccessibilityAction: onA11yAction,
+  };
+
   const controls = (
     <View style={styles.controlsRow}>
       {canZap ? <AppButton label="◀ Anterior" accessibilityLabel="Canal anterior" variant="secondary" compact onPress={() => zap(-1)} style={styles.ctrl} /> : null}
@@ -208,7 +248,7 @@ export default function PlayerScreen() {
               ) : null}
             </View>
             <View style={styles.overlayBottom}>
-              <Text accessibilityRole="header" style={styles.overlayTitle} numberOfLines={1}>
+              <Text {...titleA11y} style={styles.overlayTitle} numberOfLines={1}>
                 {channel.name}
               </Text>
               <Text style={styles.overlayEpg} numberOfLines={2}>
@@ -230,7 +270,7 @@ export default function PlayerScreen() {
       <StatusBar style="light" hidden={false} />
       <View style={styles.videoBox}>{video}</View>
       <ScrollView contentContainerStyle={styles.info}>
-        <Text accessibilityRole="header" style={styles.title}>
+        <Text {...titleA11y} style={styles.title}>
           {channel.number != null ? `${channel.number}. ` : ''}
           {channel.name}
         </Text>
@@ -273,7 +313,7 @@ export default function PlayerScreen() {
             label="Programação"
             variant="secondary"
             compact
-            onPress={() => router.push({ pathname: '/epg/[id]', params: { id: channel.id, categoryId: params.categoryId ?? '' } })}
+            onPress={openEpg}
             hint="Abre a programação completa deste canal"
             style={styles.ctrl}
           />
