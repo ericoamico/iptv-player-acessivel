@@ -3,6 +3,10 @@ name: Gerar APK Android
 on:
   push:
     branches: [main]
+    # Mudanças só de documentação não geram APK (nem atualização para os usuários).
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
   workflow_dispatch:
 
 permissions:

@@ -1,90 +1,117 @@
 # IPTV Acessível
 
-App de IPTV em React Native (Expo SDK 58) feito para funcionar bem com **TalkBack** (Android) e **VoiceOver** (iOS).
+Aplicativo de IPTV para Android feito para ser usado com leitor de tela (**TalkBack**).
+Você entra com os dados da sua lista de canais, navega pelas categorias e assiste aos canais
+com a programação de cada um.
 
-## Funcionalidades
+O app não vem com nenhuma lista de canais: você usa os dados que recebeu do seu provedor.
 
-- **Login** com servidor + usuário + senha (Xtream Codes) ou link M3U.
-  - Colar um link completo (`get.php?username=…&password=…`) preenche servidor, usuário e senha.
-  - Credenciais guardadas criptografadas (expo-secure-store).
-- **Categorias**: cada categoria abre uma **tela nova** com os canais.
-- **Canais**: busca por nome, logo, número e "Agora / A seguir" do EPG.
-  - Toque duplo: assistir. Ação do leitor de tela (ou toque longo): ver programação.
-- **Player** em **tela nova** (expo-video): HLS e MPEG-TS.
-  - Botões grandes e acessíveis: anterior, reproduzir/pausar, próximo, tela cheia, programação.
-  - Anuncia canal e programa ao começar a tocar.
-  - Em paisagem, os controles não somem enquanto o leitor de tela estiver ativo.
-  - Em caso de erro: "Tentar novamente" e "Tentar formato HLS/TS".
-- **EPG**:
-  - Xtream: o "agora / a seguir" é buscado por canal (`get_short_epg`), só para os canais visíveis na tela.
-  - Guia completo XMLTV (`.xml` e `.xml.gz`), `url-tvg` do M3U ou endereço próprio: opcional, processado em partes para não travar o app.
-- **Configurações**:
-  - Modo de tela: **Retrato (padrão)**, Paisagem ou Automático.
-  - Girar livremente no player.
-  - Atualizar lista e guia agora, e atualização automática (12h/24h/desligada).
-  - Endereço de EPG personalizado.
-  - Formato do vídeo (TS/HLS).
-  - Dados da conta (validade, telas) e sair.
+## Baixar
 
-## Endereço do servidor
+**[Baixar a versão mais recente (APK)](https://github.com/ericoamico/iptv-player-acessivel/releases/download/apk-latest/iptv-acessivel.apk)**
 
-Se o provedor passou apenas usuário e senha, peça a ele o **endereço do servidor (DNS)**, por exemplo `http://servidor.com:8080`.
-Para deixar o endereço fixo no app, preencha `DEFAULT_SERVER` em `src/config.ts`.
+Funciona no Android 7 ou mais novo.
 
-## Rodando
+### Como instalar
 
-```bash
-npm install
-npx expo run:android      # ou: npx eas-cli@latest build --profile development
-```
+1. Abra o arquivo baixado no celular.
+2. O Android vai pedir para permitir a instalação de apps desconhecidos pelo navegador ou pelo
+   gerenciador de arquivos. Permita.
+3. Se o Play Protect avisar que o app não é conhecido, escolha **Instalar mesmo assim**.
 
-O app usa módulos nativos (expo-video, secure-store, screen-orientation), então precisa de um *development build*. O Expo Go não serve.
+## Entrar
 
-## Baixar o APK
+Na primeira tela, escolha o tipo de acesso:
 
-A cada push no `main`, o GitHub Actions gera um APK de teste e publica na release
-[`apk-latest`](../../releases/tag/apk-latest). O workflow fica em `.github/workflows/android-apk.yml`.
-O APK é assinado com a chave de produção guardada nos segredos do repositório
-(`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`).
-Sem esses segredos, o workflow usa a chave de teste pública do Expo e mostra um aviso.
-A chave **nunca** deve ser colocada no repositório.
+- **Servidor, usuário e senha**: o mais comum. Preencha:
+  - **Servidor**: o endereço informado pelo provedor, por exemplo `http://servidor.com:8080`.
+    Nos dados do provedor ele costuma aparecer como "URL", "DNS" ou "Servidor".
+  - **Usuário** e **Senha**.
+- **Link da lista M3U**: se o provedor mandou um link de lista.
 
-### Atualização automática
+Se você recebeu um link completo com usuário e senha (com `username=` e `password=`), basta colar
+esse link no campo **Servidor**: o app preenche os três campos sozinho.
 
-Junto com o APK, o workflow publica `latest.json` com o número do build (`versionCode` = número da execução do Actions).
-Ao abrir, o app (Android) lê esse arquivo e, se houver build maior que o instalado, oferece baixar e instalar.
-Também há o botão "Procurar atualização" em Configurações. O Android pede uma vez a permissão
-"Instalar apps desconhecidos" para o IPTV Acessível.
+Usuário e senha ficam guardados de forma criptografada no celular.
 
-## Scripts
+## Usando o app
 
-```bash
-npm run typecheck   # TypeScript
-npm run lint        # ESLint
-npx expo start --web # roda no navegador (para testes; sem guardar senha com segurança)
-npm test            # testes de parsers (M3U, XMLTV, links) e da API Xtream com servidor simulado
-```
+### Categorias e canais
 
-## Estrutura
+- A tela inicial mostra as categorias. **Favoritos** é o primeiro item.
+- Cada categoria abre uma tela nova com os canais.
+- Cada canal mostra o que está passando agora e o que vem a seguir.
+- Há um campo para buscar canais dentro da categoria.
 
-```
-src/
-├── app/                 # telas (Expo Router)
-│   ├── login.tsx
-│   ├── categories.tsx
-│   ├── category/[id].tsx   # canais da categoria
-│   ├── player/[id].tsx     # player
-│   ├── epg/[id].tsx        # programação do canal
-│   └── settings.tsx
-├── api/                 # xtream.ts, m3u.ts, epg.ts, http.ts
-├── store/               # zustand: auth, playlist, epg, settings
-├── components/          # botões, campos e rádios acessíveis
-├── hooks/               # orientação, leitor de tela, sincronização
-└── utils/
-```
+### Player
 
-## Observações
+- Toque duas vezes num canal para assistir. O player abre numa tela nova.
+- Botões: **Canal anterior**, **Reproduzir/Pausar**, **Próximo canal**, **Tela cheia**,
+  **Adicionar aos favoritos** e **Programação**.
+- Ao começar a tocar, o leitor de tela anuncia o canal e o programa atual.
+- Em paisagem, os controles não somem enquanto o TalkBack estiver ligado.
+- Se um canal não abrir, use **Tentar novamente** ou **Tentar formato HLS/TS**.
 
-- `usesCleartextTraffic` (Android) e `NSAllowsArbitraryLoads` (iOS) estão ativados porque a maioria dos servidores IPTV usa `http://`.
-- O iOS não toca MPEG-TS puro. Por isso o padrão no iPhone é HLS (`.m3u8`).
-- O app não inclui nenhuma lista: o usuário fornece a dele.
+### Favoritos
+
+- Adicione um canal aos favoritos pela ação do TalkBack **Adicionar aos favoritos**, pela estrela
+  ao lado do canal ou pelo botão no player.
+- Dentro de **Favoritos**, as ações **Mover para cima** e **Mover para baixo** mudam a ordem.
+- Ao abrir um canal pelos Favoritos, **Próximo canal** e **Canal anterior** passam só pelos favoritos.
+- Os favoritos ficam salvos no celular. Desinstalar o app ou limpar os dados dele apaga os favoritos.
+
+## Usando com o TalkBack
+
+Além do toque duplo, vários itens têm **ações extras**. Para usá-las, coloque o foco no item e
+deslize para cima ou para baixo com o controle de leitura em **Ações**, ou abra o menu de ações
+do TalkBack.
+
+| Onde | Ações |
+|---|---|
+| Categoria | Abrir categoria, Atualizar lista |
+| Canal | Assistir, Ver programação, Adicionar/Remover dos favoritos |
+| Canal dentro de Favoritos | Também Mover para cima e Mover para baixo |
+| Nome do canal no player | Próximo canal, Canal anterior, Pausar/Reproduzir, Ver programação, Adicionar/Remover dos favoritos, Tela cheia, O que está passando |
+| Programa na programação | Assistir este canal |
+
+No player, a ação **O que está passando** lê o canal, a situação do vídeo e o programa atual
+e o próximo.
+
+## Configurações
+
+Acesse pelo botão **Configurações** (aparece na tela como "Ajustes") no topo da tela de categorias.
+
+- **Modo de tela**: Retrato (padrão), Paisagem ou Automático.
+- **Girar livremente no player**: permite assistir em paisagem mesmo com o app em retrato.
+- **Lista de canais**: atualizar agora, ou automaticamente a cada 12 ou 24 horas.
+- **Guia de programação**:
+  - O "agora / a seguir" de cada canal é buscado no servidor só para os canais que aparecem na
+    tela, por isso pode levar um ou dois segundos para aparecer.
+  - **Baixar guia completo agora** traz a programação de todos os canais de uma vez. Esse arquivo
+    costuma ser grande e pode demorar.
+  - Também é possível informar o endereço de um guia próprio (XMLTV).
+- **Formato do vídeo**: TS ou HLS. Troque se algum canal não abrir.
+- **Atualizações do app**: mostra a versão instalada e tem o botão **Procurar atualização**.
+- **Conta**: servidor, usuário, validade e o botão **Sair da conta**.
+
+## Atualizações
+
+O app procura uma versão nova ao ser aberto. Quando houver, ele avisa e oferece
+**Atualizar agora**: baixa a nova versão e abre o instalador do Android para você confirmar.
+
+Na primeira atualização, o Android pede para permitir que o IPTV Acessível instale apps.
+Permita e volte ao app. A atualização mantém o login e os favoritos.
+
+## Problemas comuns
+
+- **"Usuário ou senha incorretos"**: confira os dados enviados pelo provedor.
+- **"Não foi possível conectar ao servidor"**: confira o endereço do servidor e a internet.
+- **O canal abre mas não toca**: use **Tentar formato HLS/TS** no player, ou troque o formato do
+  vídeo nas Configurações.
+- **A programação não aparece**: alguns provedores não têm programação para todos os canais.
+  Tente **Baixar guia completo agora** nas Configurações.
+
+## Desenvolvimento
+
+Informações técnicas, como compilar o app e como o APK é gerado, estão em
+[docs/DESENVOLVIMENTO.md](docs/DESENVOLVIMENTO.md).
